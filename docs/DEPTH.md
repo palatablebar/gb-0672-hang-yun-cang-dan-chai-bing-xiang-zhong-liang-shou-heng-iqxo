@@ -13,6 +13,25 @@
 | M5 净毛重核验 | 执行并复核净毛重核验 | `POST /api/weight` | `app/modules/weight/rules.py` | `tests/test_weight.py` |
 | M6 报关对账 | 执行并复核报关对账 | `POST /api/reconcile` | `app/modules/reconcile/rules.py` | `tests/test_reconcile.py` |
 | M7 版本封存 | 执行并复核版本封存 | `POST /api/archive` | `app/modules/archive/rules.py` | `tests/test_archive.py` |
+| M8 截关处置 | 生成并复核截关处置批次 | `POST /api/cutoff` | `app/modules/cutoff/rules.py` | `tests/test_cutoff.py` |
+
+## 截关处置批次
+
+按主单逐张给出「进入 / 暂缓 / 阻断」，判定只读同一次运行已算出的证据：
+
+| 情形 | 处置 | 说明 |
+|---|---|---|
+| 拆并闭合、件重逐层对平、危险品无阻断 | 进入 | 可直接交接 |
+| 只缺 UN 编号或件重未对平 | 暂缓 | 补正单到达前可等待 |
+| 缺父级、拆并成环、危险品不相容/未知类 | 阻断 | 交给下游会把未闭合关系带进交接 |
+| 采信隔离且挂不到任何主单 | 阻断 | 以未归属单据单列，保留原始行 |
+| 暂缓事项超过 `cutoff_at` 仍未闭合 | 阻断 | 到期升级，不再占用等待位 |
+| 整批行不守恒或报关总量有差异 | 批次状态降为待对账 | 逐单结论保留，不阻断 |
+
+同一批次线只保留一个当前结论：同输入重跑沿用上一版，结论变化才追加版本。
+版本表只增不删，生成失败时回滚并把上一版与原证据恢复为当前结论。
+批次键取 `batch_key` 参数或 `context.batch`；都没有时按源快照散列，因此同一份舱单重跑落在同一条批次线，换样例则另起一条。
+拆并关系变化后重新产生的件重结论会重新进入判定，不使用旧的平面汇总。
 
 ## 陷阱登记
 

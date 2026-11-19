@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="sheet-grid">
+  <section class="panel index">
+    <h2>装箱索引<sup>1</sup></h2>
+    {% for root in state.graph.roots %}
+    <details open>
+      <summary>{{ root }}</summary>
+      {% for child in state.graph.children[root] %}
+      <div class="branch">{{ child }}<small>{{ state.graph.children[child]|length }} 项</small></div>
+      {% endfor %}
+    </details>
+    {% endfor %}
+  </section>
+  <section class="panel data-panel">
+    <h2>截关处置批次<sup>2</sup><small>{{ state.cutoff.batch_id }}{% if state.cutoff.get('version') %} · v{{ state.cutoff.version }}{% endif %} · {{ state.cutoff.get('batch_status', '待生成') }}</small></h2>
+    <div class="batch-head">
+      <div><label>批次状态</label><b class="state-{{ state.cutoff.status_class }}">{{ state.cutoff.status }}</b></div>
+      <div><label>主单</label><b>{{ state.cutoff.counts.roots }}</b></div>
+      <div><label>进入</label><b>{{ state.cutoff.counts.enter }}</b></div>
+      <div><label>暂缓</label><b>{{ state.cutoff.counts.hold }}</b></div>
+      <div><label>阻断</label><b>{{ state.cutoff.counts.block }}</b></div>
+      <div><label>未归属</label><b>{{ state.cutoff.counts.unassigned }}</b></div>
+      <div><label>截关时点</label><b>{{ state.cutoff.cutoff_at or '未设置' }}</b></div>
+      <div><label>判定时点</label><b>{{ state.cutoff.as_of or '未指定' }}</b></div>
+    </div>
+    <table class="cutoff-table">
+      <thead><tr><th>提单编号</th><th>处置</th><th>依据</th><th>依据说明</th><th>覆盖单据</th><th>版本</th><th>证据指纹 / 原始行</th></tr></thead>
+      <tbody>
+      {% for row in state.cutoff.rows %}
+        <tr class="disp-{{ row.disposition }}">
+          <td>{{ row.id }}</td>
+          <td><span class="pill">{{ row.disposition }}</span></td>
+          <td>{{ row.cause_label }}</td>
+          <td class="wide" title="{{ row.cause }}">{{ row.cause }}</td>
+          <td>{{ row.member_count }}</td>
+          <td>{{ row.revision_no }}</td>
+          <td>{{ row.evidence_ref }}</td>
+        </tr>
+      {% endfor %}
+      {% for row in state.cutoff.unassigned %}
+        <tr class="disp-阻断">
+          <td>{{ row.id }}</td>
+          <td><span class="pill">阻断</span></td>
+          <td>{{ row.cause_label }}</td>
+          <td class="wide" title="{{ row.cause }}">{{ row.kind }} · {{ row.cause }}</td>
+          <td>—</td>
+          <td>—</td>
+          <td>行 {{ row.line }}</td>
+        </tr>
+      {% endfor %}
+      {% if not state.cutoff.rows and not state.cutoff.unassigned %}
+        <tr><td colspan="7">本批无可处置主单。</td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+    <div class="toolstrip">
+      <button id="cutoff-generate">生成 / 更新批次</button>
+      <button id="cutoff-history">批次历史</button>
+      <output id="cutoff-message" aria-live="polite"></output>
+    </div>
+  </section>
+  <div class="right-column">
+    <section class="panel">
+      <h2>整批闸口<sup>3</sup></h2>
+      <div class="checkline"><b>行守恒</b><span>{{ state.cutoff.gates.input_conservation.input }}</span><span class="{% if state.cutoff.gates.input_conservation.status!='通过' %}fail{% endif %}">{{ state.cutoff.gates.input_conservation.status }}</span></div>
+      <div class="checkline"><b>报关对账</b><span>{{ state.cutoff.gates.declaration.totals.gross_kg }} / {{ state.cutoff.gates.declaration.declared.gross_kg }}</span><span class="{% if state.cutoff.gates.declaration.status!='一致' %}fail{% endif %}">{{ state.cutoff.gates.declaration.status }}</span></div>
+      <div class="checkline"><b>未归属</b><span>{{ state.cutoff.gates.unassigned.count }}</span><span class="{% if state.cutoff.gates.unassigned.count %}fail{% endif %}">{{ state.cutoff.gates.unassigned.status }}</span></div>
+    </section>
+    <section class="panel"><h2>阻断凭据<sup>4</sup></h2>{{ records(state.hazard_issues+state.graph.errors) }}</section>
+    <section class="panel"><h2>采信隔离</h2>{{ records(state.quarantine) }}</section>
+  </div>
+</div>
+{% endblock %}

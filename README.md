@@ -2,7 +2,7 @@
 
 给货代单证员使用。主提单与分提单拆并形成有向无环关系，件数和净毛重逐层守恒。
 
-七个业务模块：舱单采信、包装映射、拆并编组、危险品检查、净毛重核验、报关对账、版本封存。
+七个业务模块：舱单采信、包装映射、拆并编组、危险品检查、净毛重核验、报关对账、版本封存；另有截关处置批次，逐张主单给出进入、暂缓或阻断结论。
 
 ```sh
 docker compose up --build -d
@@ -20,3 +20,5 @@ SQLite使用命名卷，容器重启后保留历史。要重建演示可在Compo
 源码在 `app/`，样例在 `sample_data/`，测试在 `tests/`；定义见 `docs/DATA-DICTIONARY.md`，模块和边界测试对应关系见 `docs/DEPTH.md`。输入上限2MB，属于离线复核工具。
 
 采信页支持上传或粘贴CSV。完整源字节与参数随批次持久化，跨页通过run_id读取同一结果。`POST /api/runs/{run_id}/rerun` 读取该批不可变输入快照重新计算，规则未变时批号不变。切换另一示例则创建或复用另一批次。
+
+截关处置批次：`/cutoff` 页面逐张主单列出进入、暂缓、阻断及依据。`POST /api/cutoff` 用 `run_id`（或 `dataset`/`csv_text`）生成，返回的 `batch_id` 在批次线上稳定，同输入重跑不新增版本；`POST /api/cutoff/batches/{batch_id}/regenerate` 换一份运行证据重算，结论变化才追加版本。`GET /api/cutoff/batches`、`GET /api/cutoff/batches/{batch_id}`、`GET /api/cutoff/batches/{batch_id}/versions` 查历史与原证据。生成失败回滚到上一版，版本表只增不删。暂缓项超过 `context.cutoff_at` 未闭合时升级为阻断，判定时点由 `as_of` 指定。
